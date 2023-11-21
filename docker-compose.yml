@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  dlt_db:
+    image: dlt_dbt_pg_postgis_db:15.3.3
+    build:
+      context: ./Dockerfiles/db
+      dockerfile: Dockerfile
+    shm_size: 4gb
+    environment:
+      POSTGRES_DB: dlt_pg_db
+      POSTGRES_USER: matt
+      POSTGRES_PASSWORD: matts_dlt_db_pw
+    ports:
+      - "54321:5432"
+    volumes:
+      - dlt_dbt_pg_db:/var/lib/postgresql/data/
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-h",
+          "dlt_db",
+          "-d",
+          "dlt_pg_db",
+          "-U",
+          "matt"
+        ]
+      interval: 5s
+      retries: 5
+    restart: always
+
+volumes:
+  dlt_dbt_pg_db:
