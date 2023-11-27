@@ -25,7 +25,9 @@ def format_arxiv_API_call_params(
     ascending: bool = False,
 ) -> Dict:
     if search_terms is None and id_list is None:
-        raise Exception("search_terms and id_list can't both be None or there's nothing to request!")
+        raise Exception(
+            "search_terms and id_list can't both be None or there's nothing to request!"
+        )
     if search_terms:
         params = {"search_query": search_terms}
     if id_list:
@@ -38,9 +40,32 @@ def format_arxiv_API_call_params(
         params["max_results"] = max_results
 
     if sort_by not in VALID_SORT_BY_ORDERABLES and sort_by is not None:
-        raise Exception(f"Invalid sort_by value entered. Must be None or in {VALID_SORT_BY_ORDERABLE}")
+        raise Exception(
+            f"Invalid sort_by value entered. Must be None or in {VALID_SORT_BY_ORDERABLE}"
+        )
     if sort_by is not None:
         sort_modes = {True: "ascending", False: "descending"}
         params["sortBy"] = sort_by
         params["sortOrder"] = sort_modes[ascending]
     return params
+
+
+def format_arxiv_API_call(
+    search_terms: Optional[str] = None,
+    id_list: Optional[List[str]] = None,
+    start: int = 0,
+    max_results: Optional[int] = 10,
+    sort_by: Optional[str] = None,
+    ascending: bool = False,
+) -> requests.models.PreparedRequest:
+    base_api_call = "http://export.arxiv.org/api/query"
+    params = format_arxiv_API_call_params(
+        search_terms=search_terms,
+        id_list=id_list,
+        start=start,
+        max_results=max_results,
+        sort_by=sort_by,
+        ascending=ascending,
+    )
+    req = requests.Request("GET", base_api_call, params=params).prepare()
+    return req
