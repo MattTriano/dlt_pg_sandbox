@@ -9,6 +9,12 @@ import requests
 MAX_MAX_RESULTS = 2000
 VALID_SORT_BY_ORDERABLES = ["submittedDate", "lastUpdatedDate", "relevance"]
 
+ATOM_NAMESPACES = {
+    "atom": "http://www.w3.org/2005/Atom",
+    "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
+    "arxiv": "http://arxiv.org/schemas/atom",
+}
+
 
 def xml_to_dict(element: str) -> Dict:
     if not element:
@@ -69,3 +75,41 @@ def format_arxiv_API_call(
     )
     req = requests.Request("GET", base_api_call, params=params).prepare()
     return req
+
+
+def unpack_entry_authors(entry: ET.Element) -> Dict:
+    authors = entry.findall("atom:author", ATOM_NAMESPACES)
+    all_author_details = []
+    for author in authors:
+        author_details = {}
+        author_details["name"] = author.find("atom:name", ATOM_NAMESPACES).text
+        affiliations = [af.text for af in author.findall("arxiv:affiliation")]
+        if len(affiliations) > 0:
+            author_details["affiliation"] = affiliations
+        else:
+            author_details["affiliation"] = None
+        all_author_details.append(author_details)
+    return all_author_details
+
+
+def unpack_entry_links(entry: ET.Element) -> Dict:
+    links = entry.findall("atom:link", ATOM_NAMESPACES)
+    article_links = {}
+    for link in links:
+        if link.attrib["rel"] == "alternate":
+            link_type = "abstract"
+        else:
+            link_type = link.attrib["title"]
+        article_links[link_type] = link.attrib
+    return article_links
+
+
+def unpack_entry_categories(entry: ET.Element) -> List[Dict]:
+    """ Unpacks the primary and other categories for an arXiv article. The first in the list
+          is the primary category. """
+    categories = [entry.find("arxiv:primary_category", ATOM_NAMESPACES).attrib]
+    other_categories = entry.findall("atom:category", ATOM_NAMESPACES)
+    if len(other_categories) > 0:
+        categories.extend([el.attrib for el in other_categories])
+    distinct_categories = [dict(t) for t in {tuple(d.items()) for d in categories}]
+    return distinct_categories
