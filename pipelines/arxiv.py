@@ -105,11 +105,55 @@ def unpack_entry_links(entry: ET.Element) -> Dict:
 
 
 def unpack_entry_categories(entry: ET.Element) -> List[Dict]:
-    """ Unpacks the primary and other categories for an arXiv article. The first in the list
-          is the primary category. """
+    """Unpacks the primary and other categories for an arXiv article. The first in the list
+    is the primary category."""
     categories = [entry.find("arxiv:primary_category", ATOM_NAMESPACES).attrib]
     other_categories = entry.findall("atom:category", ATOM_NAMESPACES)
     if len(other_categories) > 0:
         categories.extend([el.attrib for el in other_categories])
     distinct_categories = [dict(t) for t in {tuple(d.items()) for d in categories}]
     return distinct_categories
+
+
+class EntryProcessor:
+    def __init__(self, entry: xml.etree.ElementTree.Element):
+        self.entry = entry
+        self.entry_data = {}
+        self.process_entry()
+
+    def process_entry(self):
+        self.extract_id_details()
+        self.extract_metadata_dates()
+        self.extract_title()
+        self.extract_summary()
+        self.extract_authors()
+        self.extract_links()
+        self.extract_categories()
+
+    def extract_id_details(self):
+        self.entry_data["full_article_id"] = self.entry.find("atom:id", ATOM_NAMESPACES).text
+        article_id = self.entry_data["full_article_id"].split("/")[-1]
+        v_ind = article_id.rfind("v")
+        self.entry_data["article_id"] = article_id[:v_ind]
+        self.entry_data["article_version"] = f"{article_id[v_ind:]}"
+
+    def extract_metadata_dates(self):
+        self.entry_data["updated"] = self.entry.find("atom:updated", ATOM_NAMESPACES).text
+        self.entry_data["published"] = self.entry.find("atom:published", ATOM_NAMESPACES).text
+
+    def extract_title(self):
+        raw_title = self.entry.find("atom:title", ATOM_NAMESPACES).text
+        self.entry_data["title"] = " ".join([line.strip() for line in raw_title.split("\n")])
+
+    def extract_summary(self):
+        raw_summary = self.entry.find("atom:summary", ATOM_NAMESPACES).text
+        self.entry_data["summary"] = " ".join([line.strip() for line in raw_summary.split("\n")])
+
+    def extract_authors(self):
+        self.entry_data["authors"] = unpack_entry_authors(entry=self.entry)
+
+    def extract_links(self):
+        self.entry_data["links"] = unpack_entry_links(entry=self.entry)
+
+    def extract_categories(self):
+        self.entry_data["categories"] = unpack_entry_categories(entry=self.entry)
