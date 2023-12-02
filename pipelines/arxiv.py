@@ -1,7 +1,9 @@
 import json
 from typing import Dict, List, Optional
+import xml
 import xml.etree.ElementTree as ET
 
+from bs4 import BeautifulSoup
 import dlt
 import requests
 
@@ -157,3 +159,25 @@ class EntryProcessor:
 
     def extract_categories(self):
         self.entry_data["categories"] = unpack_entry_categories(entry=self.entry)
+
+
+def scrape_arxiv_category_codes_and_descriptions() -> pd.DataFrame:
+    url = "https://arxiv.org/category_taxonomy"
+    response = requests.get(url)
+    html_content = response.text
+
+    soup = BeautifulSoup(html_content, "html.parser")
+    data = []
+
+    i = 0
+    for div in soup.find_all("div", class_="columns divided"):
+        if i <= 0:
+            # the top of the document includes a sample category id that doesn't conform to the
+            #   pattern, hence this little hack
+            continue
+        i = i + 1
+        short_name = div.find("h4").get_text(strip=True).split("(")[0]
+        long_name = div.find("h4").find("span").get_text(strip=True).strip("()")
+        description = div.find("p").get_text(strip=True)
+        data.append({"Short Name": short_name, "Long Name": long_name, "Description": description})
+    return pd.DataFrame(data)
